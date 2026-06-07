@@ -1,5 +1,3 @@
----
-
 ## File: `infra-repo/README.md`
 
 ```markdown
