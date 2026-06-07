@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: auth
-          image: your-registry/auth:latest  # replace with your actual image
+          image: yannassiri26/auth:latest # replace with your actual image
           ports:
             - containerPort: 4000
               name: http
