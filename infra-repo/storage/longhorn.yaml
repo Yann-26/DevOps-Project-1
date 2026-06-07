@@ -1,0 +1,46 @@
+# ============================================
+# Longhorn - Cloud Native Distributed Block Storage
+# ============================================
+# 
+# Installation Method:
+#   Longhorn is installed via Helm, not a static manifest.
+#   Use the commands below to install it on your cluster.
+#
+# Prerequisites:
+#   - open-iscsi installed on all worker nodes
+#   - NFSv4 client installed on all worker nodes (for backup)
+#
+# Quick Install:
+#   helm repo add longhorn https://charts.longhorn.io
+#   helm repo update
+#   helm install longhorn longhorn/longhorn \
+#     --namespace longhorn-system \
+#     --create-namespace \
+#     --set defaultSettings.replicaCount=2 \
+#     --set defaultSettings.defaultDataPath=/var/lib/longhorn
+#
+# For production, create a values.yaml and use:
+#   helm install longhorn longhorn/longhorn \
+#     --namespace longhorn-system \
+#     --create-namespace \
+#     --values longhorn-values.yaml
+# ============================================
+
+---
+# Example StorageClass that uses Longhorn as the provisioner
+# Apply this AFTER Longhorn is installed
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "2"
+  staleReplicaTimeout: "30"
+  fromBackup: ""
+  dataLocality: "best-effort"

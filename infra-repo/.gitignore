@@ -1,0 +1,40 @@
+# Secrets - NEVER commit these
+*.env
+*.env.local
+*secrets*.yaml
+!data/postgres/secrets.yaml
+!system/monitoring/alertmanager-slack-secret.yaml
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+build/
+dist/
+.next/
+out/
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/tmp/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/

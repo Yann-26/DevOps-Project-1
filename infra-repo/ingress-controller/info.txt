@@ -1,0 +1,3 @@
+NGINX Ingress Controller + Cert-Manager so traffic can actually reach Jenkins.
+
+This deploys the NGINX Ingress Controller using the official Kubernetes community manifest (bare-metal / generic cloud version): infra-repo/ingress-controller/nginx-ingress.yaml
