@@ -57,7 +57,11 @@ pipeline {
                             
                             # Copy secret to apps namespace if needed
                             kubectl get secret postgres-secrets -n data -o yaml | sed 's/namespace: data/namespace: apps/' | kubectl apply -f - 2>/dev/null || true
-                            
+
+                            # Clean up immutable statefulset if it conflicts locally
+                            echo "=== Pre-cleaning Immutable StatefulSets ==="
+                            kubectl delete statefulset prometheus -n monitoring --ignore-not-found
+                                                        
                             # Deploy everything
                             echo "=== Deploying ==="
                             kubectl apply -f apps/ --recursive
