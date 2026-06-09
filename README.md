@@ -5,7 +5,7 @@
 
 **Production-grade Kubernetes platform with CI/CD, microservices, and full observability.**
 
-<img width="1672" height="941" alt="Image" src="https://github.com/user-attachments/assets/0c543426-1002-4ed1-af62-cd36350d8d71" />
+!<img width="1672" height="941" alt="Image" src="https://github.com/user-attachments/assets/0c543426-1002-4ed1-af62-cd36350d8d71" />
 
 ---
 
