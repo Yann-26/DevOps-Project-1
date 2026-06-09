@@ -48,6 +48,8 @@ kind: Deployment
 metadata:
   name: metrics-server
   namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
   labels:
     app: metrics-server
 spec:
