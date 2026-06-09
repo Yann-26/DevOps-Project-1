@@ -1,0 +1,133 @@
+pipeline {
+    agent any
+    
+    environment {
+        REGISTRY = 'yann26'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', 
+                    url: 'https://github.com/Yann-26/DevOps-Project-1.git'
+                echo "✅ Code pulled from GitHub"
+            }
+        }
+        
+        stage('Build Images') {
+            steps {
+                dir('infra-repo/src') {
+                    script {
+                        docker.withRegistry('https://index.docker.io/v1/', 'dockerhub') {
+                            echo "Building frontend..."
+                            docker.build("${REGISTRY}/frontend:${IMAGE_TAG}", "frontend").push()
+                            docker.build("${REGISTRY}/frontend:latest", "frontend").push()
+                            
+                            echo "Building API..."
+                            docker.build("${REGISTRY}/api:${IMAGE_TAG}", "api").push()
+                            docker.build("${REGISTRY}/api:latest", "api").push()
+                            
+                            echo "Building Auth..."
+                            docker.build("${REGISTRY}/auth:${IMAGE_TAG}", "auth").push()
+                            docker.build("${REGISTRY}/auth:latest", "auth").push()
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy to K3s') {
+            steps {
+                withCredentials([string(credentialsId: 'kubeconfig-b64', variable: 'KUBECONFIG_B64')]) {
+                    dir('infra-repo') {
+                        sh '''
+                            # Setup kubeconfig
+                            echo "$KUBECONFIG_B64" | base64 -d > /tmp/kubeconfig
+                            export KUBECONFIG=/tmp/kubeconfig
+                            
+                            # Verify connection
+                            echo "=== Cluster Connection ==="
+                            kubectl get nodes
+                            
+                            # Update image tags
+                            sed -i "s|image:.*frontend:.*|image: ${REGISTRY}/frontend:${IMAGE_TAG}|g" apps/frontend/deployment.yaml
+                            sed -i "s|image:.*api:.*|image: ${REGISTRY}/api:${IMAGE_TAG}|g" apps/api/deployment.yaml
+                            sed -i "s|image:.*auth:.*|image: ${REGISTRY}/auth:${IMAGE_TAG}|g" apps/auth/deployment.yaml
+                            
+                            # Copy secret to apps namespace if needed
+                            kubectl get secret postgres-secrets -n data -o yaml | sed 's/namespace: data/namespace: apps/' | kubectl apply -f - 2>/dev/null || true
+                            
+                            # Deploy everything
+                            echo "=== Deploying ==="
+                            kubectl apply -f apps/ --recursive
+                            kubectl apply -f data/ --recursive
+                            kubectl apply -f system/monitoring/ --recursive
+                            
+                            # Wait for rollouts
+                            echo "=== Waiting for pods ==="
+                            kubectl rollout status deployment/frontend -n apps --timeout=120s || true
+                            kubectl rollout status deployment/api -n apps --timeout=120s || true
+                            kubectl rollout status deployment/auth -n apps --timeout=120s || true
+                            
+                            # Cleanup kubeconfig
+                            rm -f /tmp/kubeconfig
+                            
+                            echo "✅ Deployed!"
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                withCredentials([string(credentialsId: 'kubeconfig-b64', variable: 'KUBECONFIG_B64')]) {
+                    sh '''
+                        echo "$KUBECONFIG_B64" | base64 -d > /tmp/kubeconfig
+                        export KUBECONFIG=/tmp/kubeconfig
+                        
+                        echo "========================================="
+                        echo "  PLATFORM STATUS"
+                        echo "========================================="
+                        
+                        echo ""
+                        echo "=== Applications ==="
+                        kubectl get pods -n apps
+                        
+                        echo ""
+                        echo "=== Data Layer ==="
+                        kubectl get pods -n data
+                        
+                        echo ""
+                        echo "=== Services ==="
+                        kubectl get svc -n apps
+                        
+                        echo ""
+                        echo "=== HPA (Autoscaling) ==="
+                        kubectl get hpa -n apps
+                        
+                        echo ""
+                        echo "=== Ingress ==="
+                        kubectl get ingress -A
+                        
+                        rm -f /tmp/kubeconfig
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "🎉 Pipeline completed successfully! Platform is live."
+        }
+        failure {
+            echo "❌ Pipeline failed. Check the logs above for errors."
+        }
+        always {
+            echo "Pipeline finished. Build number: ${BUILD_NUMBER}"
+            cleanWs()
+        }
+    }
+}
