@@ -11,7 +11,13 @@ spec:
     path: infra-repo
     directory:
       recurse: true
-      exclude: 'src/**/*' # 👈 Tells ArgoCD to completely skip your source code
+      exclude: "src/**/*" # 👈 Tells ArgoCD to completely skip the source code
+  ignoreDifferences:
+    - group: apiregistration.k8s.io
+      kind: APIService
+      name: v1beta1.metrics.k8s.io
+      jsonPointers:
+        - /spec/caBundle # 👈 Instructs ArgoCD to disregard the auto-generated bundle
   destination:
     server: https://kubernetes.default.svc
     namespace: default
