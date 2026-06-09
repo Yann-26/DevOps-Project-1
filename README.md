@@ -25,7 +25,6 @@
 
 ## 🏗 Architecture Overview
 
-
 ```
 
 ```
