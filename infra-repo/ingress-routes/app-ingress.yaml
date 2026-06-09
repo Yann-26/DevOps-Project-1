@@ -15,10 +15,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - app.yourdomain.com
+        - ac6ee-137-97-136-22.ngrok-free.app
       secretName: app-tls
   rules:
-    - host: app.yourdomain.com
+    - host: ac6ee-137-97-136-22.ngrok-free.app
       http:
         paths:
           # Frontend - root path

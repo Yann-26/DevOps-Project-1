@@ -9,10 +9,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - https://c6ee-137-97-136-22.ngrok-free.app
+        - c6ee-137-97-136-22.ngrok-free.app
       secretName: jenkins-tls
   rules:
-    - host: https://c6ee-137-97-136-22.ngrok-free.app
+    - host: c6ee-137-97-136-22.ngrok-free.app
       http:
         paths:
           - path: /

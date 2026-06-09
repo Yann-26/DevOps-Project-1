@@ -205,7 +205,7 @@ spec:
         resources:
           requests:
             storage: 20Gi
-        # storageClassName: longhorn
+        # storageClassName: local-path
 ---
 apiVersion: v1
 kind: Service

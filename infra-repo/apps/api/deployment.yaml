@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: yannassiri26/api:latest  # replace with your actual image
+          image: yann26/api:latest  
           ports:
             - containerPort: 3000
               name: http

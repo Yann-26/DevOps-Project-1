@@ -58,7 +58,7 @@ spec:
         resources:
           requests:
             storage: 10Gi
-        storageClassName: longhorn
+        storageClassName: local-path
 ---
 apiVersion: v1
 kind: ConfigMap

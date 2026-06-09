@@ -17,8 +17,19 @@ BOLD='\033[1m'
 
 # Config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOY_LOG="/tmp/devops-platform-deploy.log"
+DEPLOY_LOG="$PWD/devops-platform-deploy.log"
 START_TIME=$(date +%s)
+LOCAL_MODE=false
+
+# Parse flags
+for arg in "$@"; do
+    case $arg in
+        --local|-l)
+        LOCAL_MODE=true
+        shift
+        ;;
+    esac
+done
 
 # ============================================
 # Helper Functions
@@ -127,12 +138,25 @@ main() {
     check_kubectl
     check_cluster
     
+    # Auto-detect local context if flag wasn't explicitly passed
+    if [ "$LOCAL_MODE" = false ]; then
+        if kubectl get nodes -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | grep -Eiq "minikube|kind|k3s|docker-desktop|microk8s|assiri"; then
+            LOCAL_MODE=true
+            warning "Auto-detected local infrastructure. Enabling local development profile."
+        fi
+    fi
+
     # Display cluster info
     echo ""
     kubectl get nodes -o wide 2>/dev/null | head -5
     echo ""
     
     # Ask for confirmation
+    if [ "$LOCAL_MODE" = true ]; then
+        echo -e "${CYAN}Profile Run Mode: LOCAL DEVELOPMENT (Bypassing public DNS and TLS tools)${NC}"
+    else
+        echo -e "${YELLOW}Profile Run Mode: CLOUD/PRODUCTION${NC}"
+    fi
     echo -e "${YELLOW}This will deploy the entire DevOps platform to your cluster.${NC}"
     echo -e "${YELLOW}Make sure your kubeconfig points to the correct cluster.${NC}"
     echo ""
@@ -225,8 +249,12 @@ main() {
     if [ -d "$SCRIPT_DIR/ingress-controller" ]; then
         apply_manifests "$SCRIPT_DIR/ingress-controller/namespace.yaml" "Ingress NGINX Namespace"
         
-        if [ -d "$SCRIPT_DIR/ingress-controller/cert-manager" ]; then
-            apply_manifests "$SCRIPT_DIR/ingress-controller/cert-manager" "Cert-Manager"
+        if [ "$LOCAL_MODE" = true ]; then
+            warning "Skipping Cert-Manager installation. NGINX Ingress fallback profiles will handle SSL locally."
+        else
+            if [ -d "$SCRIPT_DIR/ingress-controller/cert-manager" ]; then
+                apply_manifests "$SCRIPT_DIR/ingress-controller/cert-manager" "Cert-Manager"
+            fi
         fi
         
         apply_manifests "$SCRIPT_DIR/ingress-controller/nginx-ingress.yaml" "NGINX Ingress Controller"
@@ -250,7 +278,11 @@ main() {
     fi
     
     if [ -f "$SCRIPT_DIR/system/cluster-autoscaler.yaml" ]; then
-        apply_manifests "$SCRIPT_DIR/system/cluster-autoscaler.yaml" "Cluster Autoscaler"
+        if [ "$LOCAL_MODE" = true ]; then
+            warning "Skipping Cluster Autoscaler (unsupported on local cluster engines)."
+        else
+            apply_manifests "$SCRIPT_DIR/system/cluster-autoscaler.yaml" "Cluster Autoscaler"
+        fi
     fi
     
     # ==========================================
@@ -313,7 +345,12 @@ main() {
     INGRESS_IP=$(kubectl get svc -n ingress-nginx nginx-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "PENDING")
     INGRESS_HOSTNAME=$(kubectl get svc -n ingress-nginx nginx-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
     
-    if [ "$INGRESS_IP" != "PENDING" ] && [ -n "$INGRESS_IP" ]; then
+    if [ "$LOCAL_MODE" = true ]; then
+        NODE_PORT=$(kubectl get svc -n ingress-nginx nginx-ingress -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}' 2>/dev/null || echo "N/A")
+        NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || echo "127.0.0.1")
+        echo -e "  ${GREEN}Local Mode Enabled:${NC}"
+        echo -e "  ${CYAN}Application Route:${NC} http://$NODE_IP:$NODE_PORT (Map your local /etc/hosts domain here)"
+    elif [ "$INGRESS_IP" != "PENDING" ] && [ -n "$INGRESS_IP" ]; then
         echo -e "  ${GREEN}Application:${NC}   https://app.yourdomain.com (point DNS to $INGRESS_IP)"
         echo -e "  ${GREEN}Jenkins:${NC}       https://jenkins.yourdomain.com (point DNS to $INGRESS_IP)"
     elif [ -n "$INGRESS_HOSTNAME" ]; then
@@ -363,6 +400,6 @@ main() {
 }
 
 # ============================================
-# Run
+# Run 
 # ============================================
 main "$@"
