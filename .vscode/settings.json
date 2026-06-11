@@ -1,0 +1,5 @@
+{
+    "yaml.schemas": {
+        "kubernetes://schema/v1@service": "file:///home/assiri-yann/Documents/DevOps_Projects/DevOps-Project-1/infra-repo/system/monitoring/alertmanager.yaml"
+    }
+}
