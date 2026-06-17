@@ -1,7 +1,7 @@
 ## File: `infra-repo/README.md`
 
 <p align="center">
- <img width="1672" height="941" alt="Image" src="https://github.com/user-attachments/assets/ff1217dc-079e-4fd3-8447-2d49d9119220" />
+<img width="1672" height="941" alt="Image" src="https://github.com/user-attachments/assets/e5c67a45-313b-4cef-a895-22ed2963c6db" />
 </p>
 
 <h1 align="center">🚀 DevOps Platform</h1>
