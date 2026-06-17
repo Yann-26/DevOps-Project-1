@@ -1,6 +1,5 @@
 ## File: `infra-repo/README.md`
 
-```markdown
 <p align="center">
   <img src="https://github.com/user-attachments/assets/0c543426-1002-4ed1-af62-cd36350d8d71" alt="DevOps Platform Architecture" width="800"/>
 </p>
