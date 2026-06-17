@@ -110,49 +110,101 @@ This platform implements a complete **GitOps-driven DevOps workflow**:
 ```
 infra-repo/
 │
-├── 📜 deploy.sh                       # One-command full deployment
-├── 📜 destroy.sh                      # Teardown everything
-├── 📜 Jenkinsfile                     # CI/CD pipeline definition
-├── 📜 README.md                       # This documentation
+├── 📜 deploy.sh # One-command full platform deployment
+├── 📜 destroy.sh # Teardown everything safely
+├── 📜 Jenkinsfile # CI/CD pipeline (GitHub → Build → Deploy)
+├── 📜 argocd-app.yaml # ArgoCD GitOps application definition
+├── 📜 secrets-template.yaml # Template for required secrets (fill before deploy)
+├── 📜 get_helm.sh # Helm installer utility
 │
-├── 📦 apps/                           # Application microservices
-│   ├── frontend/                      # React frontend (2-10 pods)
-│   ├── api/                           # Node.js API (3-20 pods)
-│   └── auth/                          # JWT Auth service (2-10 pods)
+├── 📦 apps/ # Application microservices
+│ ├── namespace.yaml # 'apps' namespace definition
+│ ├── frontend/ # React frontend
+│ │ ├── deployment.yaml # Frontend deployment (2 replicas)
+│ │ ├── service.yaml # Internal ClusterIP service
+│ │ └── hpa.yaml # Horizontal Pod Autoscaler (2-10 pods)
+│ ├── api/ # Core REST API
+│ │ ├── deployment.yaml # API deployment (3 replicas)
+│ │ ├── service.yaml # Internal ClusterIP service
+│ │ └── hpa.yaml # Horizontal Pod Autoscaler (3-20 pods)
+│ └── auth/ # JWT Authentication service
+│ ├── deployment.yaml # Auth deployment (2 replicas)
+│ ├── service.yaml # Internal ClusterIP service
+│ └── hpa.yaml # Horizontal Pod Autoscaler (2-10 pods)
 │
-├── 🗄 data/                            # Stateful data services
-│   ├── postgres/                      # PostgreSQL 16 + Secrets
-│   └── redis/                         # Redis 7
+├── 🗄️ data/ # Stateful data services
+│ ├── namespace.yaml # 'data' namespace definition
+│ ├── image.png # Data layer architecture diagram
+│ ├── postgres/ # PostgreSQL database
+│ │ ├── statefulset.yaml # StatefulSet with 10Gi persistent storage
+│ │ ├── service.yaml # Headless service for StatefulSet
+│ │ ├── secrets.yaml # DB credentials + JWT secret (base64)
+│ │ └── sealed-secret.yaml # Sealed Secrets encrypted version (Git-safe)
+│ └── redis/ # Redis cache
+│ ├── statefulset.yaml # StatefulSet with 5Gi persistent storage
+│ └── service.yaml # Headless service for StatefulSet
 │
-├── 🌐 ingress-controller/             # Traffic management
-│   ├── nginx-ingress.yaml             # NGINX Ingress Controller
-│   └── cert-manager/                  # Let's Encrypt TLS automation
+├── 🌐 ingress-controller/ # Traffic management & TLS
+│ ├── namespace.yaml # 'ingress-nginx' namespace definition
+│ ├── nginx-ingress.yaml # NGINX Ingress Controller deployment
+│ ├── info.txt # Ingress configuration notes
+│ └── cert-manager/ # Automatic TLS certificate management
+│ ├── namespace.yaml # 'cert-manager' namespace definition
+│ ├── crds.yaml # Custom Resource Definitions
+│ ├── serviceaccount.yaml # ServiceAccount for cert-manager
+│ ├── clusterrole.yaml # Cluster-wide permissions
+│ ├── clusterrolebinding.yaml # Bind ClusterRole to ServiceAccount
+│ ├── deployment.yaml # Cert-Manager controller deployment
+│ └── clusterissuer.yaml # Let's Encrypt ACME issuer configuration
 │
-├── 🔀 ingress-routes/                 # Path-based routing rules
+├── 🔀 ingress-routes/ # Application routing rules
+│ ├── app-ingress.yaml # Path-based routing (/ → Frontend, /api → API, /auth → Auth)
+│ └── image.png # Ingress routing diagram
 │
-├── ⚙️ jenkins/                         # CI/CD server
-│   ├── statefulset.yaml               # Jenkins LTS with persistence
-│   ├── rbac/                          # K8s plugin permissions
-│   └── ingress.yaml                   # External access
+├── ⚙️ jenkins/ # CI/CD server
+│ ├── namespace.yaml # 'jenkins' namespace definition
+│ ├── statefulset.yaml # Jenkins LTS with persistent configuration
+│ ├── service.yaml # Internal service + agent port
+│ ├── serviceaccount.yaml # ServiceAccount for Kubernetes plugin
+│ ├── clusterrole.yaml # Permissions to create/delete build pods
+│ ├── clusterrolebinding.yaml # Bind ClusterRole to ServiceAccount
+│ └── ingress.yaml # External access to Jenkins UI
 │
-├── 🖥 src/                              # Application source code
-│   ├── frontend/                      # React app + Dockerfile
-│   ├── api/                           # API + Dockerfile
-│   └── auth/                          # Auth + Dockerfile
+├── 💾 storage/ # Persistent storage providers
+│ ├── longhorn.yaml # Longhorn distributed block storage config
+│ ├── local-storage.yaml # Local path provisioner (dev fallback)
+│ └── install-longhorn.sh # Helm installation script for Longhorn
 │
-├── 💾 storage/                        # Persistent storage
-│   ├── longhorn.yaml                  # Distributed block storage
-│   └── local-storage.yaml             # Dev fallback
+├── 🔬 system/ # Cluster-level services
+│ ├── metrics-server.yaml # Metrics Server (required for HPA + kubectl top)
+│ ├── cluster-autoscaler.yaml # Auto-provisions new nodes when resources low
+│ └── monitoring/ # Observability stack
+│ ├── namespace.yaml # 'monitoring' namespace definition
+│ ├── prometheus.yaml # Metrics collection + alerting rules
+│ ├── grafana.yaml # Dashboards with Prometheus + Loki datasources
+│ ├── alertmanager.yaml # Alert routing to Slack/Email
+│ ├── loki.yaml # Log aggregation (tsdb storage)
+│ ├── promtail.yaml # Log collector DaemonSet (ships to Loki)
+│ └── sealed-slack-secret.yaml # Encrypted Slack webhook (Git-safe)
 │
-└── 🔬 system/                         # Cluster services
-    ├── metrics-server.yaml            # Required for HPA
-    ├── cluster-autoscaler.yaml        # Node auto-provisioning
-    └── monitoring/                    # Observability stack
-        ├── prometheus.yaml            # Metrics + Alerting rules
-        ├── grafana.yaml               # Dashboards
-        ├── alertmanager.yaml          # Slack/Email alerts
-        ├── loki.yaml                  # Log aggregation
-        └── promtail.yaml              # Log collector (DaemonSet)
+└── 🖥️ src/ # Application source code
+├── frontend/ # React frontend application
+│ ├── Dockerfile # Multi-stage build (Node → Nginx)
+│ ├── package.json # React dependencies
+│ ├── public/index.html # HTML entry point
+│ └── src/
+│ ├── index.js # React app with architecture viewer
+│ └── project-architecture.png # Architecture diagram displayed in UI
+├── api/ # Node.js REST API
+│ ├── Dockerfile # Production Node.js image
+│ ├── package.json # Express + pg + redis dependencies
+│ └── index.js # API server with /health endpoint
+└── auth/ # JWT Authentication service
+├── Dockerfile # Production Node.js image
+├── package.json # Express + jsonwebtoken + bcryptjs
+└── index.js # Auth server with JWT verify endpoint
+
+**21 directories, 66 files** — fully documented Infrastructure as Code.
 ```
 
 ---
