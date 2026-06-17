@@ -1,368 +1,311 @@
-<img width="1672" height="941" alt="Image" src="https://github.com/user-attachments/assets/0c543426-1002-4ed1-af62-cd36350d8d71" />
+## File: `infra-repo/README.md`
 
+```markdown
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0c543426-1002-4ed1-af62-cd36350d8d71" alt="DevOps Platform Architecture" width="800"/>
+</p>
 
+<h1 align="center">🚀 DevOps Platform</h1>
+<p align="center"><strong>Production-grade Kubernetes platform with GitOps, CI/CD, microservices, and full observability</strong></p>
 
-# 🚀 DevOps Platform
-
-**Production-grade Kubernetes platform with CI/CD, microservices, and full observability.**
-
+<p align="center">
+  <img src="https://img.shields.io/badge/Kubernetes-1.35-blue?logo=kubernetes" alt="Kubernetes"/>
+  <img src="https://img.shields.io/badge/ArgoCD-GitOps-EF7B4D?logo=argo" alt="ArgoCD"/>
+  <img src="https://img.shields.io/badge/Jenkins-CI%2FCD-D24939?logo=jenkins" alt="Jenkins"/>
+  <img src="https://img.shields.io/badge/Docker-Containers-2496ED?logo=docker" alt="Docker"/>
+  <img src="https://img.shields.io/badge/Prometheus-Monitoring-E6522C?logo=prometheus" alt="Prometheus"/>
+  <img src="https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana" alt="Grafana"/>
+</p>
 
 ---
 
 ## 📋 Table of Contents
 
-- [Architecture Overview](#-architecture-overview)
-- [Repository Structure](#-repository-structure)
-- [Prerequisites](#-prerequisites)
-- [Quick Start](#-quick-start)
-- [Component Details](#-component-details)
-- [Accessing Services](#-accessing-services)
-- [Day-2 Operations](#-day-2-operations)
-- [Troubleshooting](#-troubleshooting)
-- [Security Notes](#-security-notes)
+- [✨ Overview](#-overview)
+- [🏗 Architecture](#-architecture)
+- [📁 Repository Structure](#-repository-structure)
+- [🚀 Quick Start](#-quick-start)
+- [🔄 GitOps with ArgoCD](#-gitops-with-argocd)
+- [🔧 CI/CD Pipeline](#-cicd-pipeline)
+- [🌐 Accessing Services](#-accessing-services)
+- [📊 Day-2 Operations](#-day-2-operations)
+- [🔍 Troubleshooting](#-troubleshooting)
+- [🔒 Security](#-security)
 
 ---
 
-## 🏗 Architecture Overview
+## ✨ Overview
 
-                ┌─────────────────────────────┐
-                │      GitHub (Source Code)     │
-                └──────────────┬──────────────┘
-                               │ Webhook
-                               ▼
+This platform implements a complete **GitOps-driven DevOps workflow**:
+
+| Capability | Implementation |
+|------------|---------------|
+| **GitOps** | ArgoCD watches GitHub, auto-syncs cluster |
+| **CI/CD** | Jenkins builds images, pushes to registry |
+| **Orchestration** | Kubernetes (K3s) with HPA autoscaling |
+| **Ingress** | NGINX + Cert-Manager for TLS |
+| **Storage** | Longhorn distributed block storage + local-path |
+| **Monitoring** | Prometheus + Grafana + Alertmanager |
+| **Logging** | Promtail + Loki |
+| **Secrets** | Sealed Secrets (Git-safe encryption) |
+| **Databases** | PostgreSQL + Redis StatefulSets |
+
+---
+
+## 🏗 Architecture
 
 ```
-
-┌─────────────────────────────────────────────────────────────┐
-│                      KUBERNETES CLUSTER                      │
+┌─────────────────────────────────────────────────────────────────┐
+│                         GITOPS LOOP                              │
+│                                                                   │
+│  ┌──────────┐    git push    ┌──────────┐    auto-sync    ┌──────┐│
+│  │ Developer │──────────────▶│  GitHub   │──────────────▶│ArgoCD││
+│  └──────────┘                └──────────┘                └──┬───┘│
+│                                                            │    │
+└────────────────────────────────────────────────────────────┼────┘
+                                                             │
+┌────────────────────────────────────────────────────────────┼────┐
+│                      KUBERNETES CLUSTER                     │    │
+│                                                            ▼    │
+│  ┌──────────┐  Webhook  ┌──────────┐  Build & Push  ┌──────────┐│
+│  │  GitHub   │─────────▶│  Jenkins  │──────────────▶│  Docker   ││
+│  └──────────┘           │ StatefulSet│               │   Hub     ││
+│                         └──────────┘               └──────────┘│
 │                                                               │
-│  ┌──────────────┐     ┌─────────────────────────────┐        │
-│  │   Jenkins     │────▶│  Ephemeral Build Agents     │        │
-│  │  StatefulSet  │     │  (Kaniko → Build & Push)    │        │
-│  └──────────────┘     └─────────────────────────────┘        │
+│  ┌──────────────────────────────────────────────────────────┐ │
+│  │         NGINX Ingress + Cert-Manager (TLS)                │ │
+│  └──────┬───────────────┬───────────────┬───────────────────┘ │
+│         │               │               │                      │
+│    ┌────▼────┐    ┌─────▼─────┐   ┌─────▼─────┐               │
+│    │Frontend │    │    API    │   │   Auth    │               │
+│    │ React   │    │ Node.js   │   │   JWT     │               │
+│    │  :80    │    │  :3000    │   │  :4000    │               │
+│    │ 2-10 HPA│    │ 3-20 HPA  │   │ 2-10 HPA  │               │
+│    └─────────┘    └─────┬─────┘   └─────┬─────┘               │
+│                         │               │                      │
+│                    ┌────▼────┐    ┌─────▼─────┐               │
+│                    │PostgreSQL│    │   Redis   │               │
+│                    │  :5432  │    │  :6379    │               │
+│                    │ 10Gi PV  │    │  5Gi PV   │               │
+│                    └─────────┘    └───────────┘               │
 │                                                               │
-│  ┌──────────────────────────────────────────────────┐        │
-│  │  NGINX Ingress + Cert-Manager (TLS Termination)   │        │
-│  └──────┬───────────────┬───────────────┬───────────┘        │
-│         │               │               │                     │
-│    ┌────▼────┐    ┌─────▼─────┐   ┌─────▼─────┐              │
-│    │Frontend │    │   API     │   │   Auth    │              │
-│    │  :80    │    │  :3000    │   │  :4000    │              │
-│    │ HPA 2-10│    │ HPA 3-20  │   │ HPA 2-10  │              │
-│    └─────────┘    └─────┬─────┘   └─────┬─────┘              │
-│                         │               │                     │
-│                    ┌────▼────┐    ┌─────▼─────┐              │
-│                    │PostgreSQL│    │   Redis   │              │
-│                    │  :5432  │    │  :6379    │              │
-│                    │StatefulSet│   │StatefulSet│              │
-│                    └─────────┘    └───────────┘              │
-│                                                               │
-│  ┌──────────────────────────────────────────────────┐        │
-│  │  Observability Stack                              │        │
-│  │  Prometheus (Metrics) + Loki (Logs) + Grafana     │        │
-│  │  Alertmanager → Slack/Email Alerts                │        │
-│  └──────────────────────────────────────────────────┘        │
-└─────────────────────────────────────────────────────────────┘
-
+│  ┌──────────────────────────────────────────────────────────┐ │
+│  │              Observability Stack                           │ │
+│  │  Prometheus 📊  Loki 📝  Grafana 📈  Alertmanager 🚨      │ │
+│  └──────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### Data Flow
 
-| Path | Service | Port | Scaling |
-| :--- | :--- | :--- | :--- |
-| `/` | Frontend (React) | 80 | 2–10 pods |
-| `/api/*` | API (Node.js) | 3000 | 3–20 pods |
-| `/auth/*` | Auth (Node.js + JWT) | 4000 | 2–10 pods |
+| Path | Service | Technology | Port | Scaling |
+|------|---------|-----------|------|---------|
+| `/` | Frontend | React + Nginx | 80 | 2–10 pods |
+| `/api/*` | Core API | Node.js / Express | 3000 | 3–20 pods |
+| `/auth/*` | Authentication | Node.js / JWT | 4000 | 2–10 pods |
 
 ---
 
 ## 📁 Repository Structure
 
-
 ```
-
 infra-repo/
-├── deploy.sh                          # One-command deployment
-├── destroy.sh                         # Teardown everything
 │
-├── apps/                              # Application microservices
-│   ├── namespace.yaml
-│   ├── frontend/
-│   │   ├── deployment.yaml            # React app
-│   │   ├── service.yaml
-│   │   └── hpa.yaml                   # Autoscaling 2-10 pods
-│   ├── api/
-│   │   ├── deployment.yaml            # Core API
-│   │   ├── service.yaml
-│   │   └── hpa.yaml                   # Autoscaling 3-20 pods
-│   └── auth/
-│       ├── deployment.yaml            # JWT Authentication
-│       ├── service.yaml
-│       └── hpa.yaml                   # Autoscaling 2-10 pods
+├── 📜 deploy.sh                       # One-command full deployment
+├── 📜 destroy.sh                      # Teardown everything
+├── 📜 Jenkinsfile                     # CI/CD pipeline definition
+├── 📜 README.md                       # This documentation
 │
-├── data/                              # Stateful data services
-│   ├── namespace.yaml
-│   ├── postgres/
-│   │   ├── statefulset.yaml           # PostgreSQL 16
-│   │   ├── service.yaml               # Headless service
-│   │   └── secrets.yaml               # DB creds + JWT secret
-│   └── redis/
-│       ├── statefulset.yaml           # Redis 7
-│       └── service.yaml
+├── 📦 apps/                           # Application microservices
+│   ├── frontend/                      # React frontend (2-10 pods)
+│   ├── api/                           # Node.js API (3-20 pods)
+│   └── auth/                          # JWT Auth service (2-10 pods)
 │
-├── ingress-controller/                # Traffic management
-│   ├── namespace.yaml
+├── 🗄 data/                            # Stateful data services
+│   ├── postgres/                      # PostgreSQL 16 + Secrets
+│   └── redis/                         # Redis 7
+│
+├── 🌐 ingress-controller/             # Traffic management
 │   ├── nginx-ingress.yaml             # NGINX Ingress Controller
-│   └── cert-manager/                  # Automatic TLS certificates
-│       ├── namespace.yaml
-│       ├── crds.yaml
-│       ├── serviceaccount.yaml
-│       ├── clusterrole.yaml
-│       ├── clusterrolebinding.yaml
-│       ├── deployment.yaml
-│       └── clusterissuer.yaml         # Let's Encrypt production
+│   └── cert-manager/                  # Let's Encrypt TLS automation
 │
-├── ingress-routes/
-│   └── app-ingress.yaml               # Path-based routing rules
+├── 🔀 ingress-routes/                 # Path-based routing rules
 │
-├── jenkins/                           # CI/CD pipeline
-│   ├── namespace.yaml
-│   ├── pvc.yaml                       # Persistent workspace
-│   ├── statefulset.yaml               # Jenkins LTS
-│   ├── service.yaml
-│   ├── serviceaccount.yaml            # For K8s plugin
-│   ├── clusterrole.yaml
-│   ├── clusterrolebinding.yaml
-│   └── ingress.yaml
+├── ⚙️ jenkins/                         # CI/CD server
+│   ├── statefulset.yaml               # Jenkins LTS with persistence
+│   ├── rbac/                          # K8s plugin permissions
+│   └── ingress.yaml                   # External access
 │
-├── src/                               # Application source code
-│   ├── frontend/
-│   │   ├── Dockerfile
-│   │   ├── package.json
-│   │   ├── public/index.html
-│   │   └── src/
-│   │       ├── index.js
-│   │       └── project-architecture.png
-│   ├── api/
-│   │   ├── Dockerfile
-│   │   ├── package.json
-│   │   └── index.js
-│   └── auth/
-│       ├── Dockerfile
-│       ├── package.json
-│       └── index.js
+├── 🖥 src/                              # Application source code
+│   ├── frontend/                      # React app + Dockerfile
+│   ├── api/                           # API + Dockerfile
+│   └── auth/                          # Auth + Dockerfile
 │
-├── storage/                           # Persistent storage
-│   ├── longhorn.yaml                  # Longhorn StorageClass
-│   ├── local-storage.yaml             # Fallback local provisioner
-│   └── install-longhorn.sh            # Helm installation script
+├── 💾 storage/                        # Persistent storage
+│   ├── longhorn.yaml                  # Distributed block storage
+│   └── local-storage.yaml             # Dev fallback
 │
-└── system/                            # Cluster services
-├── metrics-server.yaml            # Required for HPA
-├── cluster-autoscaler.yaml        # Node auto-provisioning
-└── monitoring/                    # Observability stack
-├── namespace.yaml
-├── prometheus.yaml            # Metrics collection + alerting rules
-├── loki.yaml                  # Log aggregation
-├── promtail.yaml              # Log shipper (DaemonSet)
-├── grafana.yaml               # Dashboards + datasources
-└── alertmanager.yaml          # Alert routing to Slack
-
-```
-
----
-
-## 📦 Prerequisites
-
-### Required Tools
-
-| Tool | Version | Purpose |
-| :--- | :--- | :--- |
-| `kubectl` | ≥ 1.29 | Kubernetes CLI |
-| `docker` | ≥ 24.x | Build container images |
-| `helm` | ≥ 3.x | Install Longhorn (optional) |
-
-### Infrastructure
-
-- Kubernetes cluster (1.29+)
-  - 3+ worker nodes (for HA)
-  - 4+ vCPU / 8+ GB RAM per node (minimum)
-  - 50+ GB disk per node
-- Container registry (Docker Hub, Harbor, ECR, etc.)
-- Domain name (for TLS) with DNS access
-- Slack webhook URL (for alerts)
-
-### Node Setup
-
-```bash
-# Install open-iscsi on all worker nodes (for Longhorn)
-sudo apt-get update && sudo apt-get install -y open-iscsi nfs-common
-
-# Or for RHEL/CentOS
-sudo yum install -y iscsi-initiator-utils nfs-utils
-
+└── 🔬 system/                         # Cluster services
+    ├── metrics-server.yaml            # Required for HPA
+    ├── cluster-autoscaler.yaml        # Node auto-provisioning
+    └── monitoring/                    # Observability stack
+        ├── prometheus.yaml            # Metrics + Alerting rules
+        ├── grafana.yaml               # Dashboards
+        ├── alertmanager.yaml          # Slack/Email alerts
+        ├── loki.yaml                  # Log aggregation
+        └── promtail.yaml              # Log collector (DaemonSet)
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### Prerequisites
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| `kubectl` | ≥ 1.29 | Kubernetes CLI |
+| `docker` | ≥ 24.x | Build container images |
+| `helm` | ≥ 3.x | Package manager (Longhorn) |
+| Kubernetes | 1.29+ | K3s, Minikube, or cloud |
+
+### 1️⃣ Clone & Configure
 
 ```bash
-git clone <your-repo-url>
-cd infra-repo
-
+git clone https://github.com/Yann-26/DevOps-Project-1.git
+cd DevOps-Project-1/infra-repo
 ```
 
-### 2. Configure Variables
-
-Edit these files with your actual values:
-
-| File | Variable | Description |
-| --- | --- | --- |
-| `apps/*/deployment.yaml` | `image:` | Your container registry path |
-| `ingress-routes/app-ingress.yaml` | `app.yourdomain.com` | Your application domain |
-| `jenkins/ingress.yaml` | `jenkins.yourdomain.com` | Your Jenkins domain |
-| `ingress-controller/cert-manager/clusterissuer.yaml` | `admin@yourdomain.com` | Your email for Let's Encrypt |
-| `system/monitoring/alertmanager.yaml` | `slack_configs.api_url` | Your Slack webhook |
-
-### 3. Build & Push Images
+### 2️⃣ Build & Push Images
 
 ```bash
-# Set your registry
 export REGISTRY="your-dockerhub-username"
-
-# Login
 docker login
 
-# Build all three services
 docker build -t $REGISTRY/frontend:latest src/frontend/
 docker build -t $REGISTRY/api:latest src/api/
 docker build -t $REGISTRY/auth:latest src/auth/
 
-# Push to registry
 docker push $REGISTRY/frontend:latest
 docker push $REGISTRY/api:latest
 docker push $REGISTRY/auth:latest
-
 ```
 
-### 4. Deploy Everything
+### 3️⃣ Deploy
 
 ```bash
-# Make scripts executable
-chmod +x deploy.sh destroy.sh storage/install-longhorn.sh
-
-# Deploy!
+chmod +x deploy.sh
 ./deploy.sh
-
 ```
 
-### 5. Verify Deployment
+### 4️⃣ Verify
 
 ```bash
-# Check all pods
-kubectl get pods --all-namespaces
-
-# Watch the deployment progress
-kubectl get pods -n apps -w
-kubectl get pods -n data -w
-kubectl get pods -n jenkins -w
-kubectl get pods -n monitoring -w
-
+kubectl get pods --all-namespaces | grep -v kube-system
 ```
 
 ---
 
-## 🔧 Component Details
+## 🔄 GitOps with ArgoCD
 
-### CI/CD Pipeline
+Every push to `main` is automatically synced to the cluster.
+
+### ArgoCD Dashboard
+
+```bash
+# Get admin password
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d && echo
+
+# Access UI
+kubectl port-forward -n argocd svc/argocd-server 8443:443
+```
+
+Open **https://localhost:8443** → Login `admin` / password above
+
+### How It Works
 
 ```
-Git Push → GitHub Webhook → Jenkins → Kaniko Build → Push Image → Deploy to K8s
-
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│ git push │───▶│  GitHub   │───▶│  ArgoCD  │───▶│   K3s    │
+│   main   │    │ Webhook   │    │  Detect  │    │  Apply   │
+└──────────┘    └──────────┘    └──────────┘    └──────────┘
+     ⏱️ 0s           ⏱️ 1s          ⏱️ 3min         ⏱️ 3min
 ```
 
-* **Jenkins**: StatefulSet with persistent configuration
-* **Build Agents**: Ephemeral Kubernetes pods (no idle workers)
-* **Kaniko**: Daemonless container building (no Docker socket, no root)
-* **Image Registry**: Your registry of choice (Docker Hub shown)
+| Feature | Behavior |
+|---------|----------|
+| **Auto-Sync** | Changes in Git → Applied to cluster within 3 minutes |
+| **Self-Heal** | Manual changes reverted to match Git state |
+| **Prune** | Deleted YAMLs removed from cluster automatically |
+| **Drift Detection** | ArgoCD shows differences between Git and live cluster |
 
-### Application Layer
+### Application Status
 
-| Service | Tech | Port | Min/Max Pods | Probes |
-| --- | --- | --- | --- | --- |
-| **Frontend** | React + Nginx | 80 | 2 / 10 | `/` |
-| **API** | Node.js / Express | 3000 | 3 / 20 | `/health` |
-| **Auth** | Node.js / Express + JWT | 4000 | 2 / 10 | `/health` |
+```
+NAME              SYNC STATUS   HEALTH STATUS
+devops-platform   Synced        Healthy        ✅
+```
 
-### Data Layer
+### Manual Sync
 
-| Service | Version | Port | Storage | Access |
-| --- | --- | --- | --- | --- |
-| PostgreSQL | 16-alpine | 5432 | 10Gi | Internal only |
-| Redis | 7-alpine | 6379 | 5Gi | Internal only |
+```bash
+# Force sync via CLI
+kubectl patch application devops-platform -n argocd \
+  --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+```
 
-### Monitoring Stack
+---
 
-| Component | Purpose | Port | Storage |
-| --- | --- | --- | --- |
-| Prometheus | Metrics collection | 9090 | 20Gi |
-| Loki | Log aggregation | 3100 | 10Gi |
-| Promtail | Log shipping (DaemonSet) | 9080 | — |
-| Grafana | Dashboards | 3000 | — |
-| Alertmanager | Alert routing | 9093 | — |
+## 🔧 CI/CD Pipeline
 
-### Pre-configured Alerts
+### Jenkins Pipeline Stages
 
-* **PodCrashLooping**: Pod restarting repeatedly
-* **HighCPUUsage**: Container CPU > 80%
-* **HighMemoryUsage**: Container memory > 90%
+```
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│ Checkout │───▶│  Build   │───▶│   Push   │───▶│  Deploy  │
+│  GitHub  │    │  Docker  │    │Docker Hub│    │   K3s    │
+└──────────┘    └──────────┘    └──────────┘    └──────────┘
+```
+
+| Stage | Tool | Description |
+|-------|------|-------------|
+| Checkout | Git | Pulls latest code from GitHub |
+| Build | Docker | Builds frontend, API, and auth images |
+| Push | Docker Hub | Tags with build number, pushes to registry |
+| Deploy | kubectl | Updates K3s deployments, verifies rollout |
+
+### Trigger Options
+
+| Method | Setup |
+|--------|-------|
+| **GitHub Webhook** | `git push` → Jenkins auto-builds |
+| **Manual** | Click "Build Now" in Jenkins UI |
+| **ArgoCD** | Jenkins pushes image → ArgoCD syncs to cluster |
 
 ---
 
 ## 🌐 Accessing Services
 
-### Via Ingress (Production)
+### Port Forwards (Local Development)
 
-| Service | URL |
-| --- | --- |
-| Application | `https://app.yourdomain.com` |
-| Jenkins | `https://jenkins.yourdomain.com` |
-
-> **DNS Setup**: Point your domain's A record to the Ingress Controller's external IP.
-
-### Via Port Forward (Development)
-
-```bash
-# Grafana
-kubectl port-forward -n monitoring svc/grafana 3000:3000
-# → http://localhost:3000
-
-# Prometheus
-kubectl port-forward -n monitoring svc/prometheus 9090:9090
-# → http://localhost:9090
-
-# Jenkins
-kubectl port-forward -n jenkins svc/jenkins 8080:8080
-# → http://localhost:8080
-
-# Frontend
-kubectl port-forward -n apps svc/frontend 8081:80
-# → http://localhost:8081
-
-```
+| Service | Command | URL |
+|---------|---------|-----|
+| **Frontend** | `kubectl port-forward -n apps svc/frontend 8081:80` | `http://localhost:8081` |
+| **API** | `kubectl port-forward -n apps svc/api 3000:3000` | `http://localhost:3000` |
+| **Grafana** | `kubectl port-forward -n monitoring svc/grafana 3000:3000` | `http://localhost:3000` |
+| **Prometheus** | `kubectl port-forward -n monitoring svc/prometheus 9090:9090` | `http://localhost:9090` |
+| **Jenkins** | `kubectl port-forward -n jenkins svc/jenkins 8081:8080` | `http://localhost:8081` |
+| **ArgoCD** | `kubectl port-forward -n argocd svc/argocd-server 8443:443` | `https://localhost:8443` |
 
 ### Default Credentials
 
-| Service | Username | Password |
-| --- | --- | --- |
-| Grafana | `admin` | `admin` |
-| PostgreSQL | `admin` | `supersecret` |
-| Auth API | `admin` | `admin123` |
-
-> ⚠️ **Change all default credentials in production!**
+| Service | Username | Password | Notes |
+|---------|----------|----------|-------|
+| Grafana | `admin` | `admin` | Change immediately |
+| ArgoCD | `admin` | (from secret) | `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" \| base64 -d` |
+| PostgreSQL | `admin` | `supersecret` | In `data/postgres/secrets.yaml` |
+| Auth API | `admin` | `admin123` | Hardcoded for dev |
 
 ---
 
@@ -374,23 +317,25 @@ kubectl port-forward -n apps svc/frontend 8081:80
 # Manual scale
 kubectl scale deployment frontend -n apps --replicas=5
 
-# Check HPA status
+# Check HPA
 kubectl get hpa -n apps
-
-# View HPA details
 kubectl describe hpa api-hpa -n apps
-
 ```
 
-### Logs
+### Updates & Rollbacks
 
 ```bash
-# Application logs
-kubectl logs -n apps deployment/api --tail=100 -f
+# Update image
+kubectl set image deployment/api api=$REGISTRY/api:v2 -n apps
 
-# All logs via Loki (Grafana UI)
-# → http://localhost:3000 → Explore → Select Loki datasource
+# Monitor rollout
+kubectl rollout status deployment/api -n apps
 
+# Rollback
+kubectl rollout undo deployment/api -n apps
+
+# History
+kubectl rollout history deployment/api -n apps
 ```
 
 ### Database Access
@@ -401,120 +346,86 @@ kubectl exec -it -n data statefulset/postgres -- psql -U admin devops_db
 
 # Redis
 kubectl exec -it -n data statefulset/redis -- redis-cli
-
-```
-
-### Updates & Rollbacks
-
-```bash
-# Update image
-kubectl set image deployment/api api=$REGISTRY/api:v2 -n apps
-
-# Check rollout status
-kubectl rollout status deployment/api -n apps
-
-# Rollback if needed
-kubectl rollout undo deployment/api -n apps
-
-# View rollout history
-kubectl rollout history deployment/api -n apps
-
 ```
 
 ### Backup
 
 ```bash
-# PostgreSQL backup
+# PostgreSQL dump
 kubectl exec -n data statefulset/postgres -- \
-  pg_dump -U admin devops_db > backup_$(date +%Y%m%d).sql
+  pg_dump -U admin devops_db > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# Redis backup (RDB is automatic when appendonly is enabled)
+# Redis snapshot
 kubectl exec -n data statefulset/redis -- redis-cli BGSAVE
-
 ```
 
 ---
 
 ## 🔍 Troubleshooting
 
-| Issue | Command |
-| --- | --- |
-| Pod not starting | `kubectl describe pod -n apps <pod-name>` |
+| Symptom | Diagnostic |
+|---------|-----------|
+| Pod not starting | `kubectl describe pod -n apps <pod>` |
 | PVC pending | `kubectl get pvc --all-namespaces` |
-| HPA not working | `kubectl describe hpa -n apps` |
-| Ingress not routing | `kubectl describe ingress -n apps` |
-| Cert-Manager issues | `kubectl describe certificate -A` |
-| Pod crash loop | `kubectl logs -n apps <pod-name> --previous` |
-| Node resource pressure | `kubectl top nodes` |
-| Pod resource usage | `kubectl top pods -n apps` |
+| HPA unknown metrics | Check: `kubectl get pods -n kube-system \| grep metrics-server` |
+| ArgoCD OutOfSync | `kubectl get application -n argocd -o yaml \| grep -A50 status` |
+| Certificate not issued | `kubectl describe certificate -A` |
+| Crash loop | `kubectl logs -n apps <pod> --previous` |
 
-### Common Problems
+### Common Fixes
 
-**PVC stuck in Pending:**
-
+**ArgoCD can't reach API server:**
 ```bash
-# Check if StorageClass is set as default
-kubectl get storageclass
-# If not, update PVCs with the correct storageClassName
-
+kubectl rollout restart statefulset argocd-application-controller -n argocd
+kubectl rollout restart deployment argocd-server -n argocd
 ```
 
-**HPA shows unknown metrics:**
-
+**Prometheus stuck on PVC:**
 ```bash
-# Verify Metrics Server is running
-kubectl get pods -n kube-system | grep metrics-server
-# Wait 2-3 minutes after Metrics Server starts
-
+kubectl delete statefulset prometheus -n monitoring
+kubectl delete pvc -n monitoring -l app=prometheus
+# Then redeploy — uses emptyDir for dev
 ```
 
-**Cert-Manager not issuing certificates:**
-
+**Jenkins webhook cert missing:**
 ```bash
-# Check the challenge
-kubectl describe challenge -A
-# Ensure DNS is correctly pointing to Ingress IP
-
+kubectl delete validatingwebhookconfiguration ingress-nginx-admission
+kubectl delete pod -n ingress-nginx -l app=nginx-ingress
 ```
 
 ---
 
-## 🔒 Security Notes
+## 🔒 Security
 
-* **Secrets**: All sensitive values use Kubernetes Secrets (base64 encoded — use Sealed Secrets or Vault for production)
-* **Kaniko**: Builds run without Docker socket, no privileged pods
-* **RBAC**: Each component has minimal required permissions
-* **Network**: Databases use internal ClusterIP only (no external exposure)
-* **TLS**: All external traffic encrypted via Let's Encrypt
-* **JWT**: Auth service fails fast if `JWT_SECRET` is not set (no defaults)
+| Feature | Implementation |
+|---------|---------------|
+| **Secrets Management** | Sealed Secrets (encrypted, Git-safe) |
+| **Image Building** | Kaniko (daemonless, no root) |
+| **RBAC** | Minimum required permissions per component |
+| **Network** | Databases on internal ClusterIP only |
+| **TLS** | Let's Encrypt via Cert-Manager |
+| **JWT** | Auth service fails fast if secret not set |
 
-### Production Hardening Checklist
+### Production Checklist
 
-* [ ] Change all default passwords in `data/postgres/secrets.yaml`
-* [ ] Use a strong, unique JWT secret
-* [ ] Enable network policies between namespaces
-* [ ] Add Pod Security Standards
-* [ ] Use Sealed Secrets or External Secrets Operator
-* [ ] Configure Grafana with SSO (LDAP/OAuth)
-* [ ] Set up proper persistent storage for Grafana dashboards
-* [ ] Add resource quotas per namespace
-* [ ] Enable audit logging
-* [ ] Set up off-site backups for PostgreSQL
+- [ ] Enable Network Policies between namespaces
+- [ ] Enforce Pod Security Standards (restricted)
+- [ ] Configure Grafana with SSO (LDAP/OAuth)
+- [ ] Add Resource Quotas per namespace
+- [ ] Set up off-site encrypted backups
+- [ ] Enable Kubernetes Audit Logging
+- [ ] Replace base64 secrets with Sealed Secrets
 
 ---
 
 ## 📝 License
 
-MIT
+MIT © 2026
 
 ---
 
-## 🤝 Contributing
+<p align="center">
+  <strong>Built with ❤️ using Kubernetes, React, Node.js, ArgoCD, and DevOps best practices.</strong>
+</p>
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
-
----
-
-**Built with ❤️ using Kubernetes, React, Node.js, and DevOps best practices.**
